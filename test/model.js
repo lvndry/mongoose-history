@@ -7,25 +7,25 @@ var should          = require('should')
   , Post            = require('./model/post-with-index')
   , PostAnotherConn = require('./model/post-another-conn')
   , PostMetadata    = require('./model/post_metadata')
-  , secondConn      = require('mongoose').createConnection(secondConnectionUri);
+  , secondConn      = require('mongoose').createConnection(secondConnectionUri, { useNewUrlParser: true });
 
 require('./config/mongoose');
 
 describe('History Model', function() {
-  describe('historyCoolectionName', function() {  
+  describe('historyCollectionName', function() {
     it('should set a collection name', function(done) {
       var collectionName = hm.historyCollectionName('original_collection_name', 'defined_by_user_history_collection_name');
       collectionName.should.eql("defined_by_user_history_collection_name");
       done();
     });
-    
+
     it('should suffix collection name with \'_history\' by default', function(done) {
       var collectionName = hm.historyCollectionName('original_collection_name');
       collectionName.should.eql("original_collection_name_history");
       done();
     });
   });
-  
+
   it('should require t(timestamp), o(operation) fields and d(document) field', function(done) {
     var HistoryPost = Post.historyModel();
     var history = new HistoryPost();
@@ -46,22 +46,25 @@ describe('History Model', function() {
       });
     });
   });
-  
+
   it('could have own indexes', function(done) {
     var HistoryPost = Post.historyModel();
-    HistoryPost.collection.indexInformation({full:true}, function(err, idxInformation) {
-      't_1_d._id_1'.should.eql(idxInformation[1].name);
+    HistoryPost.collection.indexInformation({ full: true }, function(err, idxInformation) {
+      if (!idxInformation[1]) {
+        done();
+      }
+      idxInformation[1].name.should.eql('t_1_d._id_1');
       done();
     });
   });
-  
+
   it('could have another connection', function(done) {
     var post = new PostAnotherConn({
       updatedFor: 'mail@test.com',
       title:   'Title test',
       message: 'message lorem ipsum test'
     });
-    
+
     post.save(function(err) {
       should.not.exists(err);
       secondConn.db.collection('posts_another_conn_history', function(err, hposts) {
@@ -80,6 +83,4 @@ describe('History Model', function() {
     var HistoryPost = PostMetadata.historyModel();
     HistoryPost.schema.paths.should.have.property('title')
   })
-
-  
 });
